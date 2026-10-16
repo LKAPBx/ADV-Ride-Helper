@@ -1,0 +1,30 @@
+.gradle/
+.kotlin/
+.idea/
+**/build/
+local.properties
+*.iml
+*.jks
+*.keystore
+
+# Credentials and signing material
+.env
+.env.*
+!.env.example
+keystore.properties
+signing.properties
+secrets.properties
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Installable/generated artifacts
+*.apk
+*.aab
+*.apks
+*.log
+.externalNativeBuild/
+.cxx/
+.DS_Store
+Thumbs.db

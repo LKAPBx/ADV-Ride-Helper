@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <!-- Solid tank, engine and high front fairing distinguish this from a bicycle frame. -->
+    <path android:fillColor="#00000000" android:strokeColor="#15653B" android:strokeWidth="3.5"
+        android:pathData="M18,34A7,7 0,1 1,4,34A7,7 0,1 1,18,34M44,34A7,7 0,1 1,30,34A7,7 0,1 1,44,34" />
+    <path android:fillColor="#15653B"
+        android:pathData="M5,19H18L22,22H29L26,26H16L10,23H5Z
+            M20,21C20,17 24,15 28,17L32,20L29,25H22Z
+            M20,26H28L30,30L27,34H21L18,30Z
+            M29,18L32,11H36L38,18L33,23Z
+            M32,10L31,5H33L35,10Z" />
+    <path android:fillColor="#00000000" android:strokeColor="#15653B" android:strokeWidth="3"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M32,21L37,34M18,26L11,34L22,32M20,35H29M29,13L26,11H23M32,26Q38,23 43,28" />
+</vector>

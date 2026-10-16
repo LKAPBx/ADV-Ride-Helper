@@ -1,0 +1,62 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries><package android:name="com.google.android.projection.gearhead" /></queries>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="androidx.car.app.MAP_TEMPLATES" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <application android:name=".TelemetryApplication" android:label="ADV Ride Helper" android:icon="@drawable/ic_app" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <activity android:name=".RideDataActivity" android:exported="false" />
+        <receiver android:name=".TireScanReceiver" android:exported="false" />
+        <receiver android:name=".TireRecoveryReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <activity android:name=".DashboardCameraActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".TpmsScanActivity" android:exported="false" />
+        <activity android:name=".BluetoothInspectActivity" android:exported="false" />
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.photos" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/photo_paths" />
+        </provider>
+        <service android:name=".RideTrackingService" android:exported="false" android:foregroundServiceType="location|connectedDevice" />
+        <service android:name=".TpmsBackgroundService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+        <service android:name=".BikeConnectionService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+        <receiver android:name=".BikeConnectionReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+            </intent-filter>
+        </receiver>
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
+        <meta-data android:name="androidx.car.app.minCarApiLevel" android:value="3" />
+        <service android:name=".FuelStopService" android:exported="true" android:icon="@drawable/ic_app">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.POI" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
+

@@ -27,10 +27,17 @@ internal class TireBatteryView(context: Context, private val dark: Boolean) : Vi
         if (bars == null) {
             paint.textSize = 15f; paint.textAlign = Paint.Align.CENTER; paint.typeface = Typeface.DEFAULT_BOLD
             canvas.drawText("?", 20f, 17f, paint)
-        } else for (i in 0..3) {
-            paint.color = if (i < bars) ink else if (dark) Color.rgb(63, 77, 68) else Color.rgb(195, 208, 199)
-            paint.alpha = if (stale) 110 else 255
-            canvas.drawRect(4f + i * 8.5f, 6f, 10f + i * 8.5f, 18f, paint)
+        } else {
+            val barColor = when (bars) {
+                3, 4 -> Color.rgb(36, 166, 92)
+                2 -> Color.rgb(235, 183, 43)
+                else -> Color.rgb(215, 57, 57)
+            }
+            for (i in 0..3) {
+                paint.color = if (i < bars) barColor else if (dark) Color.rgb(63, 77, 68) else Color.rgb(195, 208, 199)
+                paint.alpha = if (stale) 110 else 255
+                canvas.drawRect(4f + i * 8.5f, 6f, 10f + i * 8.5f, 18f, paint)
+            }
         }
         canvas.restore()
     }

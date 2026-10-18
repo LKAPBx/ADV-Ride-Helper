@@ -103,7 +103,7 @@ internal object TpmsAlerts {
                     else input.text.toString().toDoubleOrNull()?.let(units::pressureInput)
                 }
                 if (values.values.any { it == null || !it.isFinite() || it !in 0.0..150.0 }) { error.text = "Enter thresholds from 0 to ${units.pressure(150.0)}"; return@setOnClickListener }
-                if (background.isChecked && !TpmsMonitor.allowed(activity)) { error.text = "Grant Nearby devices access using Refresh tire readings first."; return@setOnClickListener }
+                if (background.isChecked && !TpmsMonitor.allowed(activity)) { error.text = "Allow Nearby devices access in Android app settings before enabling monitoring."; return@setOnClickListener }
                 if (background.isChecked && listOf("front", "rear").all { TpmsStore(activity).assigned(it).isEmpty() }) {
                     error.text = "Assign Front/Rear sensors in Advanced before enabling monitoring."; return@setOnClickListener
                 }

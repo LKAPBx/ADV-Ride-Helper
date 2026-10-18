@@ -121,8 +121,6 @@ internal object TpmsMonitor {
         val status = start(context, owner)
         return if (status == "Listening for tire sensors") "Checking both assigned tire sensors • up to 15 seconds" else status
     }
-    fun refresh(context: Context, owner: String): String =
-        if (RideStore(context).running) start(context, owner, 120_000) else poll(context, owner)
     private fun finishPoll(owner: String, timedOut: Boolean) {
         val poll = polls.remove(owner) ?: return
         handler.removeCallbacks(poll.timeout)

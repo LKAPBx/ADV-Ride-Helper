@@ -218,10 +218,6 @@ class MainActivity : Activity() {
             return reading
         }
         frontTire = tireCard("Front"); rearTire = tireCard("Rear"); tireSection.addView(tires)
-        tireSection.addView(button("Refresh tire readings") {
-            if (!TpmsMonitor.allowed(this)) requestPermissions(TpmsMonitor.permissions(), 9)
-            else message(TpmsMonitor.refresh(this, "phone"))
-        })
         tracking = ToggleButton(this).apply {
             PhoneButtons.style(this, dark)
             textOff = "GPS tracking OFF — tap to start"; textOn = "GPS tracking ON — tap to stop"
@@ -360,10 +356,6 @@ class MainActivity : Activity() {
     }
     override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(code, permissions, results)
-        if (code == 9) {
-            if (TpmsMonitor.allowed(this)) message(TpmsMonitor.refresh(this, "phone"))
-            else message("Enable Nearby devices access in Android app settings to read tire sensors.")
-        }
         if (firstRunPermissions?.result(code) == true) { refreshOptionStates(); return }
         if (code == 8) {
             if (preciseAllowed()) handler.post { if (!isFinishing && !isDestroyed) backgroundLocationSetup() }
@@ -682,7 +674,7 @@ class MainActivity : Activity() {
             handler.post { if (!isFinishing && !isDestroyed) startTracking() }
         }
     }
-    override fun onPause() { TpmsMonitor.stop("phone"); handler.removeCallbacks(refresh); super.onPause() }
+    override fun onPause() { handler.removeCallbacks(refresh); super.onPause() }
     override fun onStart() { super.onStart(); if (::stationSearch.isInitialized) stationSearch.start() }
     override fun onStop() { if (::stationSearch.isInitialized) stationSearch.stop(); super.onStop() }
     override fun onDestroy() { if (::stationSearch.isInitialized) stationSearch.close(); super.onDestroy() }

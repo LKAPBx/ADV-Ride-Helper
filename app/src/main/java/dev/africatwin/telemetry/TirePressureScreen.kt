@@ -7,26 +7,20 @@ import androidx.lifecycle.*
 
 internal class TirePressureScreen(context: CarContext) : Screen(context) {
     private val handler = Handler(Looper.getMainLooper())
-    private val owner = "carTires:${System.identityHashCode(this)}"
-    private var message = "Refresh while parked. Readings show the last received broadcast."
     private val tick = object : Runnable { override fun run() { invalidate(); handler.postDelayed(this, 1000) } }
     init { lifecycle.addObserver(object : DefaultLifecycleObserver {
         override fun onStart(owner: LifecycleOwner) { handler.post(tick) }
-        override fun onStop(owner: LifecycleOwner) { handler.removeCallbacks(tick); TpmsMonitor.stop(this@TirePressureScreen.owner) }
+        override fun onStop(owner: LifecycleOwner) { handler.removeCallbacks(tick) }
     }) }
     override fun onGetTemplate(): Template {
         if (!TpmsFeature.enabled(carContext)) return PaneTemplate.Builder(Pane.Builder()
             .addRow(Row.Builder().setTitle("TPMS disabled").addText("Enable TPMS in phone Settings to show tire data on both displays.").build()).build())
             .setTitle("Tire pressure").setHeaderAction(Action.BACK).build()
-        val store = TpmsStore(carContext)
         val pane = Pane.Builder()
             .addRow(TireCarRow.build(carContext, "front"))
             .addRow(TireCarRow.build(carContext, "rear"))
-            .addRow(Row.Builder().setTitle("Sensor monitoring").addText(TpmsMonitor.health(carContext)).addText(message).build())
-            .addAction(Action.Builder().setTitle("Refresh tires")
-                .setOnClickListener(ParkedOnlyOnClickListener.create {
-                    message = TpmsMonitor.refresh(carContext, owner); invalidate()
-                }).build())
+            .addRow(Row.Builder().setTitle("Sensor monitoring").addText(TpmsMonitor.health(carContext))
+                .addText("Readings show the last received broadcast.").build())
         if (carContext.carAppApiLevel >= 4) pane.setImage(TpmsGraphics.create(carContext))
         return PaneTemplate.Builder(pane.build()).setTitle("Tire pressure").setHeaderAction(Action.BACK).build()
     }

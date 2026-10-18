@@ -75,6 +75,8 @@ public class AutoTemplateCheck {
         ItemList mapItems = listConstructor.newInstance();
         Field items = ItemList.class.getDeclaredField("mItems"); items.setAccessible(true); items.set(mapItems, List.of(row, row));
         androidx.car.app.model.constraints.RowListConstraints.ROW_LIST_CONSTRAINTS_SIMPLE.validateOrThrow(mapItems);
+        // Dashboard row contract: no-distance rows must browse to details.
+        if (!row.isBrowsable() || row.getOnClickDelegate() == null) throw new AssertionError("Map dashboard rows must open details");
         // Full setItemList additionally constructs Android SpannableString, unavailable in this JVM runner.
         System.out.println("Map row-list constraints and three-action strip validated against installed library.");
         System.out.println("Installed-library pane primary-action and grid flag regressions passed.");

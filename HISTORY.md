@@ -4,7 +4,7 @@ These notes describe earlier versions and can contain obsolete instructions. Use
 
 # AfricaTwinTelemetry — fuel & range estimate
 
-Current version **0.68 (code 68)**. Android Studio Kotlin project for a personal Africa Twin fuel estimate and nearby-station prototype.
+Historical snapshot: version **0.68 (code 68)**. Android Studio Kotlin project for a personal Africa Twin fuel estimate and nearby-station prototype.
 
 The Auto home list starts with fuel, range, and session distance/time. Counters refresh every second while the host reports the first row visible; refreshes pause when scrolled down to avoid resetting the list position. Tap the session row for a dedicated live counter. Hosts that do not report visibility still support manual Refresh and the dedicated Session screen. GPS testing is available inside Live compass. Phone session totals appear as a prominent separate display below the tracking toggle. Session distance and time reset on tracking Start and freeze on Stop.
 

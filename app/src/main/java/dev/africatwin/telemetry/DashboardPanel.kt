@@ -14,12 +14,15 @@ internal object DashboardPanel {
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.rgb(25, 35, 30))
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        val background = HeadBackground.image(estimate.context)
+        background?.let { canvas.drawBitmap(it, null, RectF(0f, 0f, 512f, 512f), paint) }
+        val tiresEnabled = TpmsFeature.enabled(estimate.context)
         val fuel = FuelBars.gaugeBitmap(estimate)
         val compass = requireNotNull(CompassIcon.create(heading?.degrees).icon!!.bitmap)
         // Separate stacked panels preserve aspect ratio and allocate more pixels to each gauge.
-        paint.color = Color.rgb(20, 32, 25)
+        paint.color = if (background == null) Color.rgb(20, 32, 25) else Color.argb(175, 20, 32, 25)
         canvas.drawRoundRect(4f, 4f, 508f, 252f, 16f, 16f, paint)
-        paint.color = Color.rgb(23, 29, 38)
+        paint.color = if (background == null) Color.rgb(23, 29, 38) else Color.argb(175, 23, 29, 38)
         canvas.drawRoundRect(4f, 260f, 508f, 508f, 16f, 16f, paint)
         if (fuel != null) canvas.drawBitmap(fuel, null, RectF(112f, 8f, 400f, 188f), paint)
         else {
@@ -34,19 +37,22 @@ internal object DashboardPanel {
             canvas.drawText(value, 256f, y, paint)
         }
         text("${estimate.fuelText()} • ${estimate.rangeText()}", 234f, 44f)
-        canvas.drawBitmap(compass, null, RectF(12f, 274f, 232f, 494f), paint)
+        canvas.save()
+        canvas.drawBitmap(compass, null, if (tiresEnabled) RectF(48f, 264f, 168f, 384f) else RectF(12f, 274f, 232f, 494f), paint)
         fun beside(value: String, y: Float, size: Float) {
-            paint.color = Color.WHITE; paint.textSize = size
+            paint.color = Color.WHITE; paint.textSize = if (tiresEnabled) size * 0.75f else size
             if (paint.measureText(value) > 244f) paint.textSize *= 244f / paint.measureText(value)
-            canvas.drawText(value, 374f, y, paint)
+            canvas.drawText(value, 374f, if (tiresEnabled) 260f + (y - 260f) * 0.5f else y, paint)
         }
         beside("HEADING", 302f, 22f)
         beside(heading?.let { "${LiveHeading.cardinal(it.degrees)} ${it.degrees.toInt()}°" } ?: "—", 350f, 38f)
         beside("GPS SPEED", 410f, 22f)
         beside(LiveSpeed.current()?.let { estimate.units.speed(RideSafety.speedMph(it.metersPerSecond)!!) } ?: "— ${estimate.units.speedUnit}", 462f, 44f)
+        canvas.restore()
         paint.color = Color.rgb(110, 135, 120); paint.strokeWidth = 3f; paint.style = Paint.Style.STROKE
         canvas.drawRoundRect(4f, 4f, 508f, 252f, 16f, 16f, paint)
-        canvas.drawRoundRect(4f, 260f, 508f, 508f, 16f, 16f, paint)
+        canvas.drawRoundRect(4f, 260f, 508f, if (tiresEnabled) 384f else 508f, 16f, 16f, paint)
+        if (tiresEnabled) TpmsGraphics.drawColumns(estimate.context, canvas, 388f)
         return CarIcon.Builder(IconCompat.createWithBitmap(bitmap)).build()
     }
 }

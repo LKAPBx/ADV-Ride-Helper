@@ -54,6 +54,13 @@ internal object EstimatedFuel {
 }
 
 internal object RideSafety {
+    fun replaceManualMeters(total: Double, previousMiles: Double, replacementMiles: Double): Double {
+        require(total.isFinite() && total >= 0 && previousMiles.isFinite() && previousMiles >= 0)
+        require(replacementMiles.isFinite() && replacementMiles in 0.0..1000000.0)
+        require(previousMiles * 1609.344 <= total + 0.01)
+        return (total - previousMiles * 1609.344).coerceAtLeast(0.0) + replacementMiles * 1609.344
+    }
+
     fun continueAfterDisconnect(metersPerSecond: Double?, thresholdMph: Int = 5, enabled: Boolean = true,
         continuing: Boolean = false): Boolean {
         if (continuing) return true

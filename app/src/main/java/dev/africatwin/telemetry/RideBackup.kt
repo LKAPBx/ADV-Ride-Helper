@@ -11,7 +11,9 @@ internal object RideBackup {
         val settings = JSONObject()
         groups.forEach { (name, keys) ->
             val values = JSONObject()
-            c.getSharedPreferences(name, 0).all.filterKeys { it in keys }.forEach { (key, value) -> values.put(key, value) }
+            val source = if (name == "fuel_estimate" || name == "ride_tracking") FuelRideState.preferences(c)
+                else c.getSharedPreferences(name, 0)
+            source.all.filterKeys { it in keys }.forEach { (key, value) -> values.put(key, value) }
             settings.put(name, values)
         }
         val events = JSONArray(); RideHistory(c).events().forEach(events::put)
@@ -64,7 +66,21 @@ internal object RideBackup {
         TpmsRecovery.disarm(c); TpmsMonitor.reset(c, "Settings restored")
         c.stopService(Intent(c, TpmsBackgroundService::class.java))
         fun apply(data: JSONObject) {
+            val combined = FuelRideState.preferences(c)
+            val combinedEdit = combined.edit()
+            for (name in listOf("fuel_estimate", "ride_tracking")) {
+                val keys = groups.getValue(name)
+                keys.forEach(combinedEdit::remove)
+                val values = data.getJSONObject("settings").getJSONObject(name)
+                values.keys().forEach { key -> when (val value = values.get(key)) {
+                    is Boolean -> combinedEdit.putBoolean(key, value)
+                    is Number -> if (key == "lastSessionElapsed") combinedEdit.putLong(key, value.toLong()) else combinedEdit.putInt(key, value.toInt())
+                    is String -> combinedEdit.putString(key, value)
+                } }
+            }
+            check(combinedEdit.commit()) { "Could not save restored fuel and ride state" }
             groups.forEach { (name, keys) ->
+                if (name == "fuel_estimate" || name == "ride_tracking") return@forEach
                 val edit = c.getSharedPreferences(name, 0).edit()
                 keys.forEach(edit::remove)
                 val values = data.getJSONObject("settings").getJSONObject(name)

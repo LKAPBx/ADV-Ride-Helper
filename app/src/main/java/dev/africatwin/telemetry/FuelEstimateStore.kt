@@ -3,9 +3,9 @@ package dev.africatwin.telemetry
 import android.content.Context
 import java.util.Locale
 
-internal class FuelEstimateStore(private val context: Context) {
+internal class FuelEstimateStore(internal val context: Context) {
     val units get() = AppUnits.get(context)
-    private val prefs = context.getSharedPreferences("fuel_estimate", Context.MODE_PRIVATE)
+    private val prefs = FuelRideState.preferences(context)
     private fun number(key: String) = prefs.getString(key, null)?.toDoubleOrNull()?.takeIf { it.isFinite() }
     val capacity get() = number("capacity") ?: 5.0
     val filledCapacity get() = number("filledCapacity")
@@ -26,8 +26,9 @@ internal class FuelEstimateStore(private val context: Context) {
         check(baselineOdometer != null && !RideStore(context).running)
         require(distance.isFinite() && distance in 0.0..1000000.0 && economy.isFinite() && economy in 1.0..200.0)
         val undo = FuelUndo(context); undo.capture()
-        prefs.edit().putString("mpg", economy.toString()).apply()
-        RideStore(context).correctMiles(distance)
+        val edit = prefs.edit().putString("mpg", economy.toString())
+        RideStore(context).correctMiles(edit, distance)
+        check(edit.commit()) { "Could not save dashboard update" }
 
         undo.committed()
     }
@@ -35,9 +36,30 @@ internal class FuelEstimateStore(private val context: Context) {
         check(baselineOdometer != null && !RideStore(context).running)
         require(distance.isFinite() && distance in 0.0..1000000.0 && economy.isFinite() && economy in 1.0..200.0)
         val undo = FuelUndo(context); undo.capture()
-        if (distance > 0) RideStore(context).addMissedMiles(EstimatedFuel.addMiles(miles, distance) ?: error("Invalid missed miles"), distance)
-        prefs.edit().putString("mpg", economy.toString()).apply()
+        val edit = prefs.edit().putString("mpg", economy.toString())
+        if (distance > 0) RideStore(context).addMissedMiles(edit, EstimatedFuel.addMiles(miles, distance) ?: error("Invalid missed miles"), distance)
+        check(edit.commit()) { "Could not save missed-distance update" }
 
+        undo.committed()
+    }
+    fun replaceAddedMiles(value: Double, economy: Double? = null) {
+        require(economy == null || (economy.isFinite() && economy in 1.0..200.0))
+        check(baselineOdometer != null && !RideStore(context).running)
+        // Validate before capturing Undo or modifying persisted data.
+        val ride = RideStore(context)
+        RideSafety.replaceManualMeters(ride.meters, ride.manualMiles, value)
+        val undo = FuelUndo(context); undo.capture()
+        val edit = prefs.edit()
+        ride.replaceManualMiles(edit, value)
+        economy?.let { edit.putString("mpg", it.toString()) }
+        check(edit.commit()) { "Could not save distance correction" }
+        undo.committed()
+    }
+    fun updateEconomy(economy: Double) {
+        check(baselineOdometer != null && !RideStore(context).running)
+        require(economy.isFinite() && economy in 1.0..200.0)
+        val undo = FuelUndo(context); undo.capture()
+        check(prefs.edit().putString("mpg", economy.toString()).commit()) { "Could not save economy" }
         undo.committed()
     }
     fun setCapacity(value: Double) {
@@ -48,9 +70,10 @@ internal class FuelEstimateStore(private val context: Context) {
         require(odometer.isFinite() && odometer in 0.0..1000000.0 && economy.isFinite() && economy in 1.0..200.0)
         require(!RideStore(context).running)
         val undo = FuelUndo(context); undo.capture()
-        prefs.edit().putString("baselineOdometer", odometer.toString()).putString("currentOdometer", odometer.toString())
-            .putString("mpg", economy.toString()).putString("filledCapacity", capacity.toString()).apply()
-        RideStore(context).baseline()
+        val edit = prefs.edit().putString("baselineOdometer", odometer.toString()).putString("currentOdometer", odometer.toString())
+            .putString("mpg", economy.toString()).putString("filledCapacity", capacity.toString())
+        RideStore(context).baseline(edit)
+        check(edit.commit()) { "Could not save fill-up" }
         context.getSharedPreferences("fuel_notice", Context.MODE_PRIVATE).edit().putBoolean("lowAlerted", false).apply()
         FuelSummaryNotice.clearLowRange(context)
         undo.committed("fill", odometer)
@@ -60,8 +83,9 @@ internal class FuelEstimateStore(private val context: Context) {
         require(!RideStore(context).running)
         require(odometer.isFinite() && odometer in baseline..1000000.0 && economy.isFinite() && economy in 1.0..200.0)
         val undo = FuelUndo(context); undo.capture()
-        prefs.edit().putString("currentOdometer", odometer.toString()).putString("mpg", economy.toString()).apply()
-        RideStore(context).correctMiles(odometer - baseline)
+        val edit = prefs.edit().putString("currentOdometer", odometer.toString()).putString("mpg", economy.toString())
+        RideStore(context).correctMiles(edit, odometer - baseline)
+        check(edit.commit()) { "Could not save dashboard reading" }
 
         undo.committed(confirmedOdometer = odometer)
     }

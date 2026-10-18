@@ -34,7 +34,7 @@ internal object TpmsAlerts {
         manager.cancel(51); manager.cancel(52)
     }
     fun prefs(c: Context) = c.getSharedPreferences("tpms_alerts", Context.MODE_PRIVATE)
-    fun backgroundEnabled(c: Context) = prefs(c).getBoolean("background", true)
+    fun backgroundEnabled(c: Context) = TpmsFeature.enabled(c) && prefs(c).getBoolean("background", true)
     fun threshold(c: Context, wheel: String) = prefs(c).getString(wheel, "0")?.toDoubleOrNull() ?: 0.0
     fun channels(c: Context) {
         val manager = c.getSystemService(NotificationManager::class.java)
@@ -45,6 +45,7 @@ internal object TpmsAlerts {
         })
     }
     fun check(c: Context, id: String, value: FoboCandidate, repeatZero: Boolean = false) {
+        if (!TpmsFeature.enabled(c)) return
         if (value.kpa != 0) zeroRepeats.remove(id)?.let(handler::removeCallbacks)
         val store = TpmsStore(c)
         listOf("front", "rear").filter { store.assigned(it) == id }.forEach { wheel ->

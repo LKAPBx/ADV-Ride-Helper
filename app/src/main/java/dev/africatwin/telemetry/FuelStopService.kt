@@ -51,7 +51,6 @@ class FuelStopService : CarAppService() {
 
 class FuelStopScreen(context: CarContext, private val gaugesOnly: Boolean = false) : Screen(context) {
     private var mapFailed = false
-    private var lastMapRefresh = 0L
     private var dashboardFailed = false
     private val handler = Handler(Looper.getMainLooper())
     private var lastSummary = ""
@@ -62,18 +61,16 @@ class FuelStopScreen(context: CarContext, private val gaugesOnly: Boolean = fals
             val estimate = FuelEstimateStore(carContext)
             val heading = LiveHeading.current()
             val map = !gaugesOnly && MapDashboard.enabled(carContext) && !mapFailed
-            val summary = "${MapDashboard.enabled(carContext)}:${ride.running}:${ride.currentSessionText()}:${estimate.fuelText()}:${estimate.rangeText()}:${heading?.degrees?.toInt()}:${ride.healthText()}:${LiveSpeed.text(carContext)}:${TpmsStore(carContext).summary()}:${if (map) LivePosition.current() else null}"
-            val now = SystemClock.elapsedRealtime()
-            if (summary != lastSummary && now - lastMapRefresh >= 15_000) {
+            val summary = "${TpmsFeature.enabled(carContext)}:${HeadBackground.revision(carContext)}:${MapDashboard.enabled(carContext)}:${ride.running}:${ride.currentSessionText()}:${estimate.fuelText()}:${estimate.rangeText()}:${heading?.degrees?.toInt()}:${ride.healthText()}:${LiveSpeed.text(carContext)}:${TpmsStore(carContext).summary()}:${LivePosition.status(carContext)}:${estimate.confidenceText()}:${if (map) LivePosition.current() else null}"
+            if (summary != lastSummary) {
                 lastSummary = summary
-                lastMapRefresh = now
                 invalidate()
             }
             handler.postDelayed(this, 1000)
         }
     }
     init { lifecycle.addObserver(object : DefaultLifecycleObserver {
-        override fun onStart(owner: LifecycleOwner) { lastMapRefresh = SystemClock.elapsedRealtime(); invalidate(); handler.removeCallbacks(tick); handler.post(tick) }
+        override fun onStart(owner: LifecycleOwner) { invalidate(); handler.removeCallbacks(tick); handler.post(tick) }
         override fun onStop(owner: LifecycleOwner) { handler.removeCallbacks(tick) }
     }) }
     override fun onGetTemplate(): Template {
@@ -96,22 +93,21 @@ class FuelStopScreen(context: CarContext, private val gaugesOnly: Boolean = fals
         .addRow(Row.Builder().setTitle("Dashboard could not load").addText("Open phone app and copy the saved error report").build())
         .addAction(RideControls.carAction(carContext) { invalidate() })
         .addAction(Action.Builder().setTitle("Find gas").setOnClickListener { screenManager.push(StationSearchScreen(carContext, searchOnOpen = true)) }.build()).build())
-        .setTitle("Fuel & range").setHeaderAction(Action.APP_ICON).build()
+        .setTitle("ADV Ride Helper").setHeaderAction(Action.APP_ICON).build()
+    // Keep row titles/count/order constant: changing titles is a new template, not a refresh.
     private fun buildDashboard(): Template {
         val estimate = FuelEstimateStore(carContext)
         val ride = RideStore(carContext)
         val heading = LiveHeading.current()
         val pane = Pane.Builder()
-            .addRow(Row.Builder().setTitle("Fuel ${estimate.fuelText()} • Range ${estimate.rangeText()}")
-                .addText("Session: ${ride.currentSessionText().replace(" elapsed", "")}")
-                .addText(estimate.confidenceText()).build())
-            .addRow(Row.Builder().setTitle("Tire pressure • ${AppUnits.get(carContext).pressureUnit} / ${AppUnits.get(carContext).temperatureUnit}")
-                .setImage(TpmsGraphics.create(carContext, compact = true), Row.IMAGE_TYPE_SMALL)
-                .addText("Front: ${TpmsStore(carContext).wheel("front").replace('\n', ' ')}")
-                .addText("Rear: ${TpmsStore(carContext).wheel("rear").replace('\n', ' ')}")
-                .build())
-            .addRow(Row.Builder().setTitle(heading?.let { "${LiveHeading.cardinal(it.degrees)} ${it.degrees.toInt()}°" } ?: "Heading unavailable")
-                .addText(ride.healthText()).addText("${LivePosition.status(carContext)} • ${LiveSpeed.text(carContext)}").build())
+            .addRow(Row.Builder().setTitle("Session")
+                .addText(ride.currentSessionText().lineSequence().first().replace(" elapsed", "")).build())
+            .apply { if (TpmsFeature.enabled(carContext) && carContext.carAppApiLevel < 4) {
+                addRow(TireCarRow.build(carContext, "front"))
+                addRow(TireCarRow.build(carContext, "rear"))
+            } }
+            .addRow(Row.Builder().setTitle("GPS")
+                .addText(LivePosition.status(carContext).substringBefore(" • ")).build())
             .addAction(RideControls.carAction(carContext) { invalidate() })
             .addAction(Action.Builder().setTitle("Map view").setOnClickListener {
                 MapDashboard.setEnabled(carContext, true)
@@ -127,7 +123,7 @@ class FuelStopScreen(context: CarContext, private val gaugesOnly: Boolean = fals
             .addAction(Action.Builder().setTitle("Find gas")
                 .setOnClickListener { screenManager.push(StationSearchScreen(carContext, searchOnOpen = true)) }.build())
             .build()
-        return PaneTemplate.Builder(pane.build()).setTitle("Fuel & range").setHeaderAction(if (gaugesOnly) Action.BACK else Action.APP_ICON)
+        return PaneTemplate.Builder(pane.build()).setTitle("ADV Ride Helper").setHeaderAction(if (gaugesOnly) Action.BACK else Action.APP_ICON)
             .setActionStrip(actions).build()
     }
 }
@@ -144,8 +140,10 @@ internal class AutoOptionsScreen(context: CarContext) : Screen(context) {
             .addItem(Row.Builder().setTitle("Session details").addText("Live distance and elapsed time")
                 .setOnClickListener { screenManager.push(RideSessionScreen(carContext)) }.build())
             .addItem(Row.Builder().setTitle("Settings").addText("Configure tank size, permissions and appearance on phone").build())
-            .addItem(Row.Builder().setTitle("Tire pressure").addText("Front/rear readings and parked refresh")
+            .apply { if (TpmsFeature.enabled(carContext)) {
+                addItem(Row.Builder().setTitle("Tire pressure").addText("Front/rear readings and parked refresh")
                 .setOnClickListener { screenManager.push(TirePressureScreen(carContext)) }.build())
+            } }
             .addItem(Row.Builder().setTitle("Advanced").addText("Diagnostics and test features")
                 .setOnClickListener { screenManager.push(AutoAdvancedScreen(carContext)) }.build())
         return ListTemplate.Builder().setTitle("More & options").setHeaderAction(Action.BACK)
@@ -156,8 +154,6 @@ internal class AutoOptionsScreen(context: CarContext) : Screen(context) {
 internal class AutoAdvancedScreen(context: CarContext) : Screen(context) {
     override fun onGetTemplate(): Template {
         val items = ItemList.Builder()
-            .addItem(Row.Builder().setTitle("GPS / compass test").addText("Compare Android Auto and phone GPS")
-                .setOnClickListener { screenManager.push(HostSensorTestScreen(carContext)) }.build())
             .addItem(Row.Builder().setTitle("Test fuel notification").addText("Check how your head unit displays alerts")
                 .setOnClickListener {
                     CarToast.makeText(carContext, if (FuelSummaryNotice.show(carContext)) "Notification sent" else "Check notification permission", CarToast.LENGTH_LONG).show()

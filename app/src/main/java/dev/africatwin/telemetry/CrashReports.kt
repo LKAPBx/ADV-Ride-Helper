@@ -6,6 +6,7 @@ import android.content.Context
 class TelemetryApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        WidgetUpdates.start(this)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching { CrashReports.record(this, "Uncaught on ${thread.name}", error) }

@@ -8,9 +8,9 @@ internal class FuelUndo(private val context: Context) {
     val available get() = prefs.contains("snapshot") && prefs.contains("afterMeters")
     fun capture() {
         val root = JSONObject()
+        val source = FuelRideState.preferences(context)
         for ((name, keys) in mapOf("fuel_estimate" to listOf("baselineOdometer", "currentOdometer", "mpg", "filledCapacity", "calibratedAt"),
             "ride_tracking" to listOf("meters", "manualMiles", "estimatedMeters", "gap"))) {
-            val source = context.getSharedPreferences(name, Context.MODE_PRIVATE)
             val values = JSONObject()
             keys.forEach { values.put(it, source.all[it] ?: JSONObject.NULL) }
             root.put(name, values)
@@ -19,7 +19,7 @@ internal class FuelUndo(private val context: Context) {
         prefs.edit().putString("snapshot", root.toString()).remove("afterMeters").apply()
     }
     fun committed(kind: String = "update", confirmedOdometer: Double? = null) {
-        context.getSharedPreferences("fuel_estimate", Context.MODE_PRIVATE).edit().putString("calibratedAt", System.currentTimeMillis().toString()).apply()
+        FuelRideState.preferences(context).edit().putString("calibratedAt", System.currentTimeMillis().toString()).apply()
         val fuel = FuelEstimateStore(context)
         val event = JSONObject().put("type", kind).put("mpg", fuel.mpg).put("tankGallons", fuel.filledCapacity)
             .put("milesSinceFill", fuel.miles)
@@ -33,9 +33,9 @@ internal class FuelUndo(private val context: Context) {
         val after = prefs.getString("afterMeters", "0")!!.toDouble()
         val current = RideStore(context)
         val oldMeters = root.getJSONObject("ride_tracking").optString("meters", "0").toDoubleOrNull() ?: 0.0
+        val edit = FuelRideState.preferences(context).edit()
         for (name in listOf("fuel_estimate", "ride_tracking")) {
             val values = root.getJSONObject(name)
-            val edit = context.getSharedPreferences(name, Context.MODE_PRIVATE).edit()
             values.keys().forEach { key ->
                 when {
                     key == "meters" -> edit.putString(key, RideSafety.undoMeters(oldMeters, after, current.meters).toString())
@@ -49,8 +49,8 @@ internal class FuelUndo(private val context: Context) {
                     else -> edit.putString(key, values.getString(key))
                 }
             }
-            edit.apply()
         }
+        check(edit.commit()) { "Could not undo fuel update" }
         context.getSharedPreferences("fuel_notice", Context.MODE_PRIVATE).edit().putBoolean("lowAlerted", root.optBoolean("lowAlerted", false)).apply()
         FuelSummaryNotice.clearLowRange(context)
         RideHistory(context).markUndone(prefs.getString("historyId", null))

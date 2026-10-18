@@ -9,8 +9,8 @@ android {
         applicationId = "dev.africatwin.telemetry"
         minSdk = 28
         targetSdk = 37
-        versionCode = 115
-        versionName = "0.115"
+        versionCode = 135
+        versionName = "0.135"
     }
     buildFeatures { buildConfig = true }
     signingConfigs {
@@ -48,10 +48,11 @@ android {
     }
 }
 dependencies {
-    // RC selected because Google's release notes recommend its security fix.
+    // 1.8.0-rc01 includes Google's documented security fix; 1.7.0 remains the stable release.
     implementation("androidx.car.app:app:1.8.0-rc01")
     implementation("androidx.car.app:app-projected:1.8.0-rc01")
     // Bundled Latin OCR model; dashboard image recognition runs on-device.
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    testImplementation("junit:junit:4.13.2")
 }
 

@@ -32,6 +32,7 @@ internal class TpmsStore(private val context: Context) {
             TpmsMonitor.backgroundReadingStale(time) || TpmsRecovery.stale(context, time)
     }
     fun record(id: String, value: FoboCandidate, time: Long): Boolean {
+        if (!TpmsFeature.enabled(context)) return false
         val previous = runCatching { JSONObject(prefs.getString("reading:$id", "")!!).optLong("time", 0) }.getOrDefault(0)
         if (time <= previous) return false
         val json = JSONObject().put("kpa", value.kpa).put("time", time)
@@ -60,13 +61,13 @@ internal class TpmsStore(private val context: Context) {
         val numbers = "${units.pressure(value.psi)} • ${units.temperature(value.celsius)}"
         val warning = when (TpmsAge.warning(value.kpa, TpmsAlerts.threshold(context, wheel))) { 2 -> "ZERO • "; 1 -> "LOW • "; else -> "" }
         val timedOut = stale(id)
-        val ageText = if (timedOut) "No recent sensor reading • ${TpmsAge.label(age).removePrefix("Stale • ")}" else TpmsAge.label(age)
+        val ageText = if (timedOut) TpmsAge.label(age).removePrefix("Stale • ") else TpmsAge.label(age)
         return "${if (timedOut) "STALE • " else ""}$warning$numbers\n$ageText"
     }
     fun summary() = "Front: ${wheel("front").replace('\n', ' ')}\nRear: ${wheel("rear").replace('\n', ' ')}"
     fun battery(wheel: String): String {
         val candidate = reading(assigned(wheel))?.first
-        candidate?.experimentalBatteryPercent?.let { return "$it% experimental (unverified)${if (stale(assigned(wheel))) " • stale" else ""}" }
+        candidate?.experimentalBatteryPercent?.let { return "$it%${if (stale(assigned(wheel))) " • stale" else ""}" }
         return candidate?.experimentalVolts?.let { "Unknown health • experimental ${"%.1f".format(java.util.Locale.US, it)} V (unverified)" }
             ?: "Unknown • Bike 2 battery encoding unverified"
     }
@@ -81,6 +82,7 @@ internal object TpmsMonitor {
     private var retryAt = 0L
     fun listening() = scanner != null && owners.isNotEmpty()
     fun health(context: Context): String {
+        if (!TpmsFeature.enabled(context)) return "TPMS disabled"
         if (!allowed(context)) return "Tire monitoring: Nearby devices/location permission missing"
         val on = runCatching { context.getSystemService(BluetoothManager::class.java).adapter?.isEnabled == true }.getOrDefault(false)
         if (!on) return "Tire monitoring: Bluetooth off"
@@ -107,6 +109,7 @@ internal object TpmsMonitor {
     private data class Poll(val context: Context, val window: TpmsPollWindow, val timeout: Runnable)
     private val polls = mutableMapOf<String, Poll>()
     fun poll(context: Context, owner: String): String {
+        if (!TpmsFeature.enabled(context)) return "TPMS disabled"
         if (polls.containsKey(owner)) return "Checking both assigned tire sensors • up to 15 seconds"
         val store = TpmsStore(context)
         val ids = setOf(store.assigned("front"), store.assigned("rear")).filter { it.isNotEmpty() }.toSet()
@@ -131,6 +134,7 @@ internal object TpmsMonitor {
         else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     fun allowed(context: Context) = permissions().all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
     fun start(context: Context, owner: String, duration: Long? = null): String {
+        if (!TpmsFeature.enabled(context)) return "TPMS disabled"
         val store = TpmsStore(context)
         if (store.assigned("front").isEmpty() && store.assigned("rear").isEmpty()) return "Assign Front/Rear sensors in Settings → Advanced → Scan TPMS sensors."
         if (!allowed(context)) return "Allow Nearby devices access on the phone for tire monitoring."
@@ -170,6 +174,7 @@ internal object TpmsMonitor {
         }
     }
     fun consume(context: Context, result: ScanResult) {
+        if (!TpmsFeature.enabled(context)) return
             try {
                 val id = result.device.address
                 val store = TpmsStore(context)

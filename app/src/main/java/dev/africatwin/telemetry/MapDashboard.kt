@@ -26,19 +26,18 @@ internal object MapDashboard {
         val context = screen.carContext
         val fuel = FuelEstimateStore(context)
         val ride = RideStore(context)
-        val tires = TpmsStore(context)
         val permitted = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val position = if (permitted) LivePosition.current() else null
         // Browsable rows really open details. They are not given invented POI distances.
         val list = ItemList.Builder()
-            .addItem(Row.Builder().setTitle("${fuel.fuelText()} • ${fuel.rangeText()}")
-                .addText("Session: ${ride.currentSessionText().replace(" elapsed", "")}")
+            .addItem(Row.Builder().setTitle("Fuel & range")
+                .addText("${fuel.fuelText()} • ${fuel.rangeText()} • Session: ${ride.currentSessionText().replace(" elapsed", "")}")
                 .addText(if (!permitted) "Allow location on phone" else LivePosition.status(context))
                 .setBrowsable(true).setOnClickListener { screen.screenManager.push(FuelStopScreen(context, gaugesOnly = true)) }.build())
-            .addItem(Row.Builder().setTitle("Tires • ${if (ride.running) "GPS ON" else "GPS OFF"} • ${LiveSpeed.text(context)}")
-                .addText("Front: ${tires.wheel("front").replace('\n', ' ')}")
-                .addText("Rear: ${tires.wheel("rear").replace('\n', ' ')}")
-                .setBrowsable(true).setOnClickListener { screen.screenManager.push(TirePressureScreen(context)) }.build())
+            .apply { if (TpmsFeature.enabled(context)) {
+                addItem(TireCarRow.build(context, "front") { screen.screenManager.push(TirePressureScreen(context)) })
+                addItem(TireCarRow.build(context, "rear") { screen.screenManager.push(TirePressureScreen(context)) })
+            } }
         // Station results belong only to Find gas, never to the ride dashboard.
         val actions = ActionStrip.Builder()
             .addAction(Action.Builder().setIcon(CarIcon.Builder(IconCompat.createWithResource(context, android.R.drawable.ic_menu_manage)).build())
@@ -47,7 +46,7 @@ internal object MapDashboard {
             .addAction(modeAction(screen, showMap = false) { screen.invalidate() })
             .addAction(Action.Builder().setTitle("Find gas").setOnClickListener { screen.screenManager.push(StationSearchScreen(context, searchOnOpen = true)) }.build())
             .build()
-        val builder = PlaceListMapTemplate.Builder().setTitle("Ride map • ${if (ride.running) "Tracking" else "Stopped"}")
+        val builder = PlaceListMapTemplate.Builder().setTitle("ADV Ride Helper")
             .setHeaderAction(Action.APP_ICON).setCurrentLocationEnabled(permitted).setItemList(list.build()).setActionStrip(actions)
         // Never plot Hell/default or an old fix as the rider's current position.
         position?.let { builder.setAnchor(Place.Builder(CarLocation.create(it.latitude, it.longitude)).build()) }

@@ -19,6 +19,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application android:name=".TelemetryApplication" android:label="ADV Ride Helper" android:icon="@drawable/ic_app" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <receiver android:name=".RideWidget" android:label="ADV Ride Helper" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/ride_widget_info" />
+        </receiver>
         <activity android:name=".RideDataActivity" android:exported="false" />
         <receiver android:name=".TireScanReceiver" android:exported="false" />
         <receiver android:name=".TireRecoveryReceiver" android:exported="true">

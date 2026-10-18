@@ -5,7 +5,7 @@ import java.util.Locale
 import android.os.SystemClock
 
 internal class RideStore(private val context: Context) {
-    private val prefs = context.getSharedPreferences("ride_tracking", Context.MODE_PRIVATE)
+    private val prefs = FuelRideState.preferences(context)
     val meters get() = prefs.getString("meters", "0")?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0 } ?: 0.0
     val gap get() = prefs.getBoolean("gap", false)
     val heartbeat get() = prefs.getLong("heartbeat", 0)
@@ -90,16 +90,34 @@ internal class RideStore(private val context: Context) {
             .putLong("lastFix", System.currentTimeMillis()).putString("status", "GPS tracking active").apply()
     }
     fun markGap() { prefs.edit().putBoolean("gap", true).apply() }
-    fun baseline() {
-        prefs.edit().putString("meters", "0")
+    fun baseline() { baseline(prefs.edit()).apply() }
+    internal fun baseline(edit: android.content.SharedPreferences.Editor): android.content.SharedPreferences.Editor {
+        return edit.putString("meters", "0")
             .putString("estimatedMeters", "0")
-            .putBoolean("gap", false).putString("manualMiles", "0").putLong("lastFix", 0).putString("status", "Fuel baseline saved; tracking stopped").apply()
+            .putBoolean("gap", false).putString("manualMiles", "0").putLong("lastFix", 0).putString("status", "Fuel baseline saved; tracking stopped")
     }
-    fun correctMiles(miles: Double) { prefs.edit().putString("meters", (miles * 1609.344).toString()).putString("estimatedMeters", "0").putString("manualMiles", "0").putBoolean("gap", false).apply() }
+    fun correctMiles(miles: Double) { correctMiles(prefs.edit(), miles).apply() }
+    internal fun correctMiles(edit: android.content.SharedPreferences.Editor, miles: Double): android.content.SharedPreferences.Editor =
+        edit.putString("meters", (miles * 1609.344).toString()).putString("estimatedMeters", "0").putString("manualMiles", "0").putBoolean("gap", false)
+    fun replaceManualMiles(value: Double) {
+        check(!running)
+        val corrected = RideSafety.replaceManualMeters(meters, manualMiles, value)
+        prefs.edit().putString("meters", corrected.toString()).putString("manualMiles", value.toString()).apply()
+    }
+    internal fun replaceManualMiles(edit: android.content.SharedPreferences.Editor, value: Double) {
+        check(!running)
+        val corrected = RideSafety.replaceManualMeters(meters, manualMiles, value)
+        edit.putString("meters", corrected.toString()).putString("manualMiles", value.toString())
+    }
     fun addMissedMiles(total: Double, added: Double) {
-        prefs.edit().putString("meters", (total * 1609.344).toString())
+        val edit = prefs.edit()
+        addMissedMiles(edit, total, added)
+        edit.apply()
+    }
+    internal fun addMissedMiles(edit: android.content.SharedPreferences.Editor, total: Double, added: Double) {
+        edit.putString("meters", (total * 1609.344).toString())
             .putString("manualMiles", (manualMiles + added).toString())
-            .putString("status", "Missed miles added; tracking stopped").apply()
+            .putString("status", "Missed miles added; tracking stopped")
     }
     fun distanceText() = "${AppUnits.get(context).distance(meters / 1609.344, 2)} tracked since fuel baseline"
     fun qualityText(): String = when {

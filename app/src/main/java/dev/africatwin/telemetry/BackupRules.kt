@@ -4,7 +4,7 @@ internal object BackupRules {
     val groups = mapOf(
         "fuel_estimate" to "capacity filledCapacity baselineOdometer currentOdometer mpg calibratedAt",
         "ride_tracking" to "meters manualMiles estimatedMeters gap lastSummary lastSessionStartLabel lastSessionMeters lastSessionEstimatedMeters lastSessionElapsed lastSessionGallons",
-        "tpms" to "front rear", "tpms_alerts" to "front rear background",
+        "tpms" to "front rear", "tpms_alerts" to "front rear background enabled",
         "dashboard_crops" to "box0 box1 configured", "appearance" to "mode", "dashboard" to "map",
         "honda_auto_tracking" to "deviceName bluetooth", "ride_disconnect" to "enabled thresholdMph",
         "fuel_notice" to "enabled minutes lowEnabled lowMiles stopSummary",

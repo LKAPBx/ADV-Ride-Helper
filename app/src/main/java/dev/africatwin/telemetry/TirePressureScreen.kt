@@ -15,11 +15,14 @@ internal class TirePressureScreen(context: CarContext) : Screen(context) {
         override fun onStop(owner: LifecycleOwner) { handler.removeCallbacks(tick); TpmsMonitor.stop(this@TirePressureScreen.owner) }
     }) }
     override fun onGetTemplate(): Template {
+        if (!TpmsFeature.enabled(carContext)) return PaneTemplate.Builder(Pane.Builder()
+            .addRow(Row.Builder().setTitle("TPMS disabled").addText("Enable TPMS in phone Settings to show tire data on both displays.").build()).build())
+            .setTitle("Tire pressure").setHeaderAction(Action.BACK).build()
         val store = TpmsStore(carContext)
         val pane = Pane.Builder()
-            .addRow(Row.Builder().setTitle("Front tire").addText(store.wheel("front")).addText("Battery: ${store.battery("front")}").build())
-            .addRow(Row.Builder().setTitle("Rear tire").addText(store.wheel("rear")).addText("Battery: ${store.battery("rear")}").build())
-            .addRow(Row.Builder().setTitle(TpmsMonitor.health(carContext)).addText(message).addText("Assign sensors in phone Settings → Advanced → Scan TPMS sensors.").build())
+            .addRow(TireCarRow.build(carContext, "front"))
+            .addRow(TireCarRow.build(carContext, "rear"))
+            .addRow(Row.Builder().setTitle("Sensor monitoring").addText(TpmsMonitor.health(carContext)).addText(message).build())
             .addAction(Action.Builder().setTitle("Refresh tires")
                 .setOnClickListener(ParkedOnlyOnClickListener.create {
                     message = TpmsMonitor.refresh(carContext, owner); invalidate()

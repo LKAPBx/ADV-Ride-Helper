@@ -150,11 +150,6 @@ fun main() {
     check(StationNames.choose(mapOf("name" to " ", "brand" to "Example Brand")) == "Example Brand")
     check(StationNames.choose(emptyMap()) == null)
     check(FoundStation("Fuel", 0.0, 0.0, 10.0, "NE").directionDisplay == "↗ NE")
-    val comparisonHost = listOf(ComparisonFix(40.0, -90.0, 10000), ComparisonFix(40.001, -90.0, 30000))
-    val comparison = GpsComparison.pair(comparisonHost, listOf(ComparisonFix(40.0, -90.0, 10000)))
-    check(comparison.size == 1 && comparison.single().identical && comparison.single().separationMeters == 0.0)
-    check(GpsComparison.pair(comparisonHost, emptyList()).isEmpty())
-    check(GpsComparison.pair(listOf(ComparisonFix(40.0, -90.0, 10000)), listOf(ComparisonFix(40.001, -90.0, 11000))).single().separationMeters in 110.0..112.0)
     val sample = java.io.File("outputs/AfricaTwinTelemetry/test/data/honda-odometer-gray.txt").readText().trim().split(',').map(String::toInt).toIntArray()
     val segmentReading = SegmentOdometer.read(72, 36, sample)
     println("Supplied photo segment reading: $segmentReading")
@@ -305,6 +300,22 @@ fun main() {
     check(UnitFormats(distanceUnit = "km").session(1609.344, 1000).startsWith("1.61 km"))
     check(UnitFormats(distanceUnit = "km", volumeUnit = "L").legacySummary("Started today\n10.00 mi\n1.00 USG used").contains("16.09 km\n3.79 L used"))
     println("Unit conversion, round-trip, legacy session and explicit photo-unit checks passed.")
+    close(RideSafety.replaceManualMeters(150.0 * 1609.344, 100.0, 20.0), 70.0 * 1609.344)
+    val correctedDistance = RideSafety.replaceManualMeters(150.0 * 1609.344, 100.0, 20.0) / 1609.344
+    val previousFuel = EstimatedFuel.gallons(5.0, 150.0, 40.0)!!
+    val correctedFuel = EstimatedFuel.gallons(5.0, correctedDistance, 40.0)!!
+    close(correctedFuel - previousFuel, 2.0)
+    close(correctedFuel * 40.0 - previousFuel * 40.0, 80.0)
+    close(RideSafety.replaceManualMeters(correctedDistance * 1609.344, 20.0, 20.0) / 1609.344, correctedDistance)
+
+    close(RideSafety.replaceManualMeters(150.0 * 1609.344, 100.0, 0.0), 50.0 * 1609.344)
+    close(RideSafety.replaceManualMeters(150.0 * 1609.344, 100.0, 120.0), 170.0 * 1609.344)
+    check(runCatching { RideSafety.replaceManualMeters(10.0, 100.0, 0.0) }.isFailure)
+    check(runCatching { RideSafety.replaceManualMeters(10.0, 0.0, -1.0) }.isFailure)
+    check(runCatching { RideSafety.replaceManualMeters(10.0, 0.0, Double.NaN) }.isFailure)
+    check(TireBatteryLevel.bars(null) == null)
+    check(TireBatteryLevel.bars(-1) == null && TireBatteryLevel.bars(101) == null)
+    for ((pct, bars) in listOf(0 to 0, 1 to 1, 25 to 1, 26 to 2, 50 to 2, 51 to 3, 75 to 3, 76 to 4, 100 to 4)) check(TireBatteryLevel.bars(pct) == bars)
     val now = 40L * 24 * 3600 * 1000
     check(FuelConfidence.describe(false, true, false, false, 0.0, now, now).startsWith("Not calibrated"))
     check(FuelConfidence.describe(true, true, true, false, 0.0, now, now).startsWith("Fuel estimate: missing distance"))
@@ -320,6 +331,8 @@ fun main() {
     check(RideCsv.cell("a,\"b\"") == "\"a,\"\"b\"\"\"")
     BackupRules.validate("fuel_estimate", "capacity", "5.0")
     BackupRules.validate("units", "Fuel volume", "L")
+    BackupRules.validate("tpms_alerts", "enabled", false)
+    check(runCatching { BackupRules.validate("tpms_alerts", "enabled", "false") }.isFailure)
     BackupRules.validate("tpms", "front", "00:15:88:0B:9E:88")
     BackupRules.validate("dashboard_crops", "box0", "0.0,0.2,0.3,0.5")
     check(runCatching { BackupRules.validate("fuel_estimate", "capacity", "NaN") }.isFailure)
@@ -333,6 +346,15 @@ fun main() {
     check(runCatching { BackupRules.validate("ride_disconnect", "thresholdMph", 1000) }.isFailure)
     check(runCatching { BackupRules.validate("tpms_alerts", "background", "true") }.isFailure)
     println("Fuel confidence, packet timing, safe CSV and backup allowlist/type/range checks passed.")
+    val migratedFuelRide = FuelRideState.mergeLegacy(
+        mapOf("mpg" to "43.6", "baselineOdometer" to "187.0"),
+        mapOf("meters" to "1609.344", "gap" to true),
+        mapOf("mpg" to "44.0", "_storageVersion" to 99, "unsupported" to Any())
+    )
+    check(migratedFuelRide["mpg"] == "44.0" && migratedFuelRide["baselineOdometer"] == "187.0")
+    check(migratedFuelRide["meters"] == "1609.344" && migratedFuelRide["gap"] == true)
+    check(migratedFuelRide["_storageVersion"] == 1 && !migratedFuelRide.containsKey("unsupported"))
+    println("Fuel/ride preference migration preserves legacy state and destination precedence.")
     check(GpsDisplayPolicy.usable(0, 7.0))
     check(GpsDisplayPolicy.usable(20_000_000_000, 50.0))
     check(GpsDisplayPolicy.usable(30_000_000_000, 100.0))

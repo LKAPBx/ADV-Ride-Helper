@@ -60,3 +60,8 @@ internal object FoboDecoder {
             volts.takeIf { !serviceFrame && it in 2.0..3.6 })
     }
 }
+
+/** Four equal display bands of the decoded percentage, not FOBO's proprietary thresholds. */
+internal object TireBatteryLevel {
+    fun bars(percent: Int?): Int? = percent?.takeIf { it in 0..100 }?.let { (it + 24) / 25 }
+}

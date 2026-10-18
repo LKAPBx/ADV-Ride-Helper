@@ -76,6 +76,7 @@ class TpmsScanActivity : Activity() {
         arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
         else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     private fun start() {
+        if (!TpmsFeature.enabled(this)) { status.text = "Enable TPMS in phone Settings first."; return }
         if (required().any { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }) {
             startAfterPermission = true
             requestPermissions(required(), 1); return
@@ -110,6 +111,7 @@ class TpmsScanActivity : Activity() {
         override fun onScanFailed(code: Int) { handler.post { stop("BLE scan failed (code $code). Stop and try again after a few seconds.") } }
     }
     private fun accept(result: ScanResult) {
+        if (!TpmsFeature.enabled(this)) { stop("TPMS disabled"); return }
         try {
             val record = result.scanRecord ?: return
             count++
